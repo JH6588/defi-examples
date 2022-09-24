@@ -2,7 +2,7 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
-
+//0x55F5542BFAfeae62E4421761cdaCEdCE95e1b39c 
 contract Lottery is Ownable{
     uint8 public duration;
     // 0或1
@@ -10,7 +10,7 @@ contract Lottery is Ownable{
     Result public lastResult;
     uint public minBetVal;
     // enum Result {WIN}
-    // 0 未开始 1，正在进行 2.结算上一场
+    // 0 未开始 1，正在进行 2.等待开启下一局q
     enum  Status { NotStarted, Running, Pending}
     Status public status;
     mapping(uint => mapping(address => uint))public  bets;
@@ -23,8 +23,8 @@ contract Lottery is Ownable{
     error NotInRange();
     error LessMinBet();
     error NotStarted();
-    event RunningStatus();
-    event Share(uint);
+    event Start(uint indexed times);
+    event Checkout(uint indexed times);
 
     //@_duration: 每局的时长
     //@ _minBetVal: 最小投注额 
@@ -45,6 +45,7 @@ contract Lottery is Ownable{
         endTime = startTime + duration;
         status = Status.Running;
         times += 1;
+        emit Start(times);
     }
     
     //投注
@@ -62,6 +63,11 @@ contract Lottery is Ownable{
         betVals[times][result] += msg.value;
     }   
 
+    // 获取开奖结果
+    function _getRes() private view returns(Result ){
+      return  Result(uint(keccak256(abi.encodePacked(block.timestamp,address(this).balance, nonce, msg.sender))) % 2);
+    }
+
     function checkout() public {
         if(status != Status.Running || block.timestamp < endTime){
            revert NotInRange();
@@ -77,19 +83,15 @@ contract Lottery is Ownable{
             
             address addr = betAddrs[times][lastResult][i];
             //按投注比例分红
-            uint share = bets[times][addr] * shares / winBetVal;
-            emit Share(share);
-            payable(addr).transfer(share + bets[times][addr]);
-           
+            uint share = bets[times][addr] * shares / winBetVal;           
+            payable(addr).transfer(share + bets[times][addr]);   
         }
         payable(owner()).transfer(address(this).balance);
-        
-
-    }
-    // 获取开奖结果
-    function _getRes() private view returns(Result ){
-      return  Result(uint(keccak256(abi.encodePacked(block.timestamp,address(this).balance, nonce, msg.sender))) % 2);
+        emit Checkout(times);
     }
 
-
+    function destory() external onlyOwner {
+        require(status == Status.Pending );
+        selfdestruct(payable(owner()));
+    }
 }
