@@ -2,153 +2,195 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>UFC 投注</title>
     <script language="javascript" type="text/javascript"
         src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-        <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"
-        type="application/javascript"></script>    
-    <script src="Lottery.js"> </script>
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js" type="application/javascript"></script>
+    <script src="Lottery.js"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/bignumber.js/9.1.0/bignumber.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css">
-    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" />
 </head>
 
 <body>
-    
     <div class="container">
         <h1>UFC竞猜</h1>
+        <div class="row"><br /><br /></div>
         <div class="row">
-            <br/><br/>
-        </div>
-        <div class="row">
-            <br><br>
+            <br /><br />
             <div class="col-md-4 .offset-md-4">
-                <button type="button" class="btn btn-info" id="connect">连接 </button>
-                <h2 style="display: inline-block" id="account"> </h2>
-                <button type="button" class="btn btn-success" id="start">开始</button>
+                <button type="button" class="btn btn-info" id="connect">连接</button>
+                <h2 style="display: inline-block" id="account"></h2>
+                <button type="button" class="btn btn-success" id="start" >开始</button>
                 <button type="button" class="btn" id="checkout">等待owner开盘</button>
             </div>
-            
         </div>
 
-        
-  
         <div class="row">
-            <div class="col-md-8" style="display:none" id="info">
+            <div class="col-md-8" style="display: none" id="info">
                 <ul>
-                    <li ><span>状态:</span> <span id="status"></span>  </li>
-                    <li ><span>局数:</span> <span id="times"></span>  </li>
-              
-                </ul> 
-            </div> 
+                    <li>
+                        <span>状态 : </span> <span class="text-info" id="status"></span>
+                    </li>
+                    <li>
+                        <span>局数 : </span> <span class="text-info" id="times"></span>
+                    </li>
+                </ul>
+            </div>
         </div>
 
         <div class="row">
             <div class="input-group mb-3">
-                <input type="text" class="form-control" id="betVal" placeholder="押注额(最低1000wei)" >
+                <input type="text" class="form-control" id="betVal" placeholder="押注额(最低1000wei)" />
                 <div class="input-group-append">
-                    <button disabled type="button" class="btn" id="bet" >暂停押注</button>
+                    <button disabled type="button" class="btn" id="bet">
+                        暂停押注
+                    </button>
                 </div>
-              </div>
+            </div>
         </div>
     </div>
-    
-
 </body>
 
 <script>
-  
     let account;
-    const addr = "0x55F5542BFAfeae62E4421761cdaCEdCE95e1b39c"
-    const provider = new ethers.providers.Web3Provider(window.ethereum)
-    window.addEventListener('load', function () {
-    lottery = new ethers.Contract(addr,abi,provider);
-    
-    $("#connect").bind("click" ,() => {
-        showAccount();
-        $("#info").show();
-        showInfo();
-        $("#connect").hide();
+    let lottery;
+    let provider;
+    const addr = "0x8D9E864ce5De6CAF7DEfbE36B8c838a06Ab217CE";
+
+    window.addEventListener("load", function () {
+        if (typeof window.ethereum == "undefined") {
+            alert("MetaMask 未安装!");
+            location.reload();
+        }
+
+        networkCheck();
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        lottery = new ethers.Contract(
+            addr,
+            abi,
+            provider
+        );
+
+        $("#connect").bind("click", () => {
+            showAccount();
+            $("#info").show();
+            showInfo();
+            $("#connect").hide();
+        });
+
+        $("#bet").bind("click", bet);
+        $("#checkout").bind("click", () =>{
+            checkout();
+            $("#checkout").hide();
+        
+        }
+        );
+        $("#start").bind("click", () =>{
+            start();
+            $("#start").hide();
+        });
+
+        setInterval(showInfo, 1000);
+
+        ethereum.on("accountsChanged", (account) => {
+            showAccount();
+            console.log("account changed");
+        });
+        ethereum.on("chainChanged", () => {
+            networkCheck();
+        });
     });
 
-    $("#bet").bind("click" ,bet);
-    $("#checkout").bind("click" ,checkout);
-    $("#start").bind("click",start)
-
-    setInterval(showInfo ,1000);
-
-    ethereum.on("accountsChanged", (account) => {
-        showAccount();
-        console.log("account changed");
-     
-    })
-
-    })
-
+    async function networkCheck() {
+        if ((await ethereum.request({ method: "eth_chainId" })) != 5) {
+            alert("清切换到goerli 测试网络!");
+            location.reload();
+        }
+    }
     async function showAccount() {
-      
-        accounts = await provider.send("eth_requestAccounts", []);
-        account = accounts[0]
+        accounts = await ethereum.request({ method: "eth_requestAccounts" });
+        account = accounts[0];
         $("#account").text(account);
-        if (account.toUpperCase() != (await lottery.owner()).toUpperCase()){
+        //非 owner 或者 status 不为2 则隐藏 开始按钮
+        if (account.toUpperCase() != (await lottery.owner()).toUpperCase() || await lottery.status() != 2) {
             $("#start").hide();
-           
-        }else{
+        } else {
             $("#start").show();
-        }     
+        }
     }
 
-    async function showInfo(){
-        
-        let statusInfo ={"0" :"游戏未开始" ,"1" :"正在进行", "2":"等待owner开盘"}
+    async function showInfo() {
+        let statusInfo = { 0: "游戏未开始", 1: "正在进行", 2: "等待owner开盘" };
         let status = await lottery.status();
         let times = await lottery.times();
         let endTime = await lottery.endTime();
-        let ts =  Date.now()/1000 ;
-        console.log("endTime :" + endTime ,"now :" + "status :" +status);
+        console.log("endTime :" + new Date(endTime * 1000).toLocaleString() + " status :" + status);
         $("#status").text(statusInfo[status]);
         $("#times").text(times);
-        if (status ==1 &&  endTime <= ts ){
+        if (status == 1 && endTime <= ts) {
             $("#checkout").removeClass().addClass("btn btn-primary").text("结算");
-        }else{
+        } else {
             $("#checkout").hide();
         }
-        if (status ==2 && endTime > ts){
-            $("bet").prop('disabled', false).text("押注").removeClass().addClass("btn btn-primary");
-        }else{
-            $("bet").prop('disabled', true).text("暂停押注").removeClass().addClass("btn");
-        }       
+        if (status == 1 && endTime < ts) {
+            $("bet")
+                .prop("disabled", false)
+                .text("押注")
+                .removeClass()
+                .addClass("btn btn-primary");
+        } else {
+            $("bet")
+                .prop("disabled", true)
+                .text("暂停押注")
+                .removeClass()
+                .addClass("btn");
+        }
     }
 
     async function start() {
-        await lottery.connect(provider.getSigner()).start({gasLimit: 3e7}).then((tx) =>{
-            console.log("start" ,tx)
-        }).catch((error) => {
-    //   if (error?.code === 4001) {
-    //     message.error(error?.message);
-    //   }
-      console.log('>>> start error: ', error);
-    })
+        await lottery
+            .connect(provider.getSigner())
+            .start({ gasLimit: 3e7 })
+            .then((tx) => {
+                console.log("start", tx);
+                alert("start成功 tx:" +tx.hash);
+            })
+            .catch((error) => {
+                //   if (error?.code === 4001) {
+                //     message.error(error?.message);
+                //   }
+                console.log(">>> start error: ", error);
+            });
+
     }
 
-    async function bet(){
-        await lottery.connect(provider.getSigner()).bet(1,{value:parseInt($("#betVal")),gasLimit: 3e7}).then((tx) =>{
-            console.log("bet" ,tx)
-        }).catch((error) => {
-      console.log('>>> bet error: ', error);
-    })
-    }
-    
-    async function checkout(){
-        await lottery.connect(provider.getSigner()).checkout({gasLimit: 3e7}).then((tx) =>{
-            console.log("checkout" ,tx)
-        }).catch((error) => {
-      console.log('>>> checkout error: ', error);
-    })
+    async function bet() {
+        await lottery
+            .connect(provider.getSigner())
+            .bet(1, { value: parseInt($("#betVal")), gasLimit: 3e7 })
+            .then((tx) => {
+                console.log("bet", tx);
+                alert("bet成功 tx: " + tx.hash);
+            })
+            .catch((error) => {
+                console.log(">>> bet error: ", error);
+            });
     }
 
+    async function checkout() {
+        await lottery
+            .connect(provider.getSigner())
+            .checkout({ gasLimit: 3e7 })
+            .then((tx) => {
+                console.log("checkout", tx);
+                alert("checkout成功 tx: " + tx.hash);
+            })
+            .catch((error) => {
+                console.log(">>> checkout error: ", error);
+            });
+    }
 </script>
 
 </html>

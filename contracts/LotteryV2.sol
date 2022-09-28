@@ -2,9 +2,7 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
-
-
-//任何人可以发起游戏，发起者会有奖励
+//0x55F5542BFAfeae62E4421761cdaCEdCE95e1b39c 
 contract LotteryV2 is Ownable{
   
     // 0或1
@@ -23,9 +21,9 @@ contract LotteryV2 is Ownable{
     //记录每场的游戏进度
     mapping(uint=> Status) public statuses;
     //记录每局的开始时间
-    mapping(uint => uint ) public startTimes;
+    mapping(uint => uint ) public startBlockId;
     //记录每局的结束时间
-    mapping(uint => uint ) public endTimes;
+    mapping(uint => uint ) public endBlockId;
     //记录每局的发起者地址
     mapping(uint => address) public starters;
     //每局合约所有人的分红比例
@@ -46,10 +44,10 @@ contract LotteryV2 is Ownable{
     error NotStarted();
     event Checkout(uint id);
     event Start(uint id ,address starter);
-    uint maxDuration = 3600 * 24 * 7;
-    uint minBetVal = 1000;
+    uint maxblocks = 6 * 24 * 7;
+    uint minBetVal = 10000;
 
-    //@_duration: 每局的时长
+    //@_blocks: 设定几个区块时间
     //@ _minBetVal: 最小投注额 
     constructor(uint8 _ownerProportion, uint _starterProportion) {
         ownerProportion = _ownerProportion;
@@ -61,22 +59,26 @@ contract LotteryV2 is Ownable{
         nonce = _nonce;
     }
 
-    ///@notice 开始 ，设置游戏时长和 游戏主题， 如 100 ,UFC273 Li vs XXX
-    function start(uint _duration ,string calldata _topic) external {
-        require(60 <_duration && _duration< maxDuration);
+    //开始
+    function start(uint _blocks
+     ,string calldata _topic) external {
+        require(5 <_blocks
+         && _blocks
+        < maxblocks
+        );
         //require( _topic.length <30);
         id += 1;
-        startTimes[id] = block.timestamp;
-        endTimes[id] = startTimes[id] + _duration;    
+        startBlockId[id] = block.number;
+        endBlockId[id] = startBlockId[id] + _blocks;    
         statuses[id] = Status.Running;
         starters[id] = msg.sender;
         topics[id] = _topic;
         emit Start(id, msg.sender);
     }
     
-    ///@notice 投注 游戏局数id,和结果  如 1,1
+    //投注
     function bet(uint _id, Result _result) external payable {
-        if(statuses[_id] != Status.Running ||block.timestamp > endTimes[id] ){
+        if(statuses[_id] != Status.Running ||block.number > endBlockId[id] ){
           revert NotInRange();
         }
 
@@ -91,12 +93,11 @@ contract LotteryV2 is Ownable{
 
     // 获取开奖结果
     function _getRes() private view returns(Result ){
-      return  Result(uint(keccak256(abi.encodePacked(block.timestamp,address(this).balance, nonce, msg.sender))) % 2);
+      return  Result(uint(keccak256(abi.encodePacked(block.number,address(this).balance, nonce, msg.sender))) % 2);
     }
 
-    ///@notice 根据游戏局数id 开奖结算 
     function checkout(uint _id) public  {
-        if(statuses[_id] != Status.Running || block.timestamp < endTimes[_id]){
+        if(statuses[_id] != Status.Running || block.number < endBlockId[_id]){
            revert NotInRange();
         }
 
@@ -108,11 +109,14 @@ contract LotteryV2 is Ownable{
         // 输方总投注额的 扣除发起人和 合约作者 抽成的作为分红
         uint betVal = winBetVal +  betResultVals[_id][Result(1- uint(result))];
         uint shares = betVal * (100 - starterProportion -ownerProportion) / 100;
-        for(uint i=0; i< betAddrs[_id][result].length; i++){ 
+        address[] memory  addrs = betAddrs[_id][result];
+        uint addrLength = addrs.length;
+        mapping (address => uint) storage  addrBet = bets[_id];
+        for(uint i=0; i< addrLength; i++){ 
             
-            address addr = betAddrs[_id][result][i];
+            address addr = addrs[i];
             //按投注比例分红
-            uint share = bets[_id][addr] * shares / winBetVal;
+            uint share = addrBet[addr] * shares / winBetVal;
            
             payable(addr).transfer(share);
            

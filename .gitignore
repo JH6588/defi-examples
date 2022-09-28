@@ -11,4 +11,4 @@ artifacts
 contracts/.deps
 contracts/artifacts/
 cache
-
+secret.json
