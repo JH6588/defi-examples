@@ -173,15 +173,13 @@
             $("#checkout").hide();
         }
         if (status == 1 && endTime > ts) {
-            $("#balance").text(ethers.utils.formatEther(await provider.getBalance(addr)) + " eth");
+            
             $("#bet")
                 .prop("disabled", false)
                 .text("押注")
                 .removeClass()
                 .addClass("btn btn-primary");
-        } else {
-            $("#balance").text(" --- ");
-    
+        } else {    
             $("#bet")
                 .prop("disabled", true)
                 .text("暂停押注")
@@ -189,6 +187,12 @@
                 .addClass("btn");
         }
         showStart()
+
+        if (status ==1){
+            $("#balance").text(ethers.utils.formatEther(await provider.getBalance(addr)) + " eth");
+        }else{
+            $("#balance").text(" --- ");
+        }
     }
 
     async function start() {
