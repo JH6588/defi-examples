@@ -10,7 +10,7 @@ async function main() {
 
 
   const lottery = await hre.ethers.getContractFactory("Lottery");
-  const lock = await lottery.deploy(100, 10000);
+  const lock = await lottery.deploy(3600, 1000000000000);
 
   await lock.deployed();
 

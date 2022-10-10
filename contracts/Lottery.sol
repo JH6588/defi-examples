@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 //0x55F5542BFAfeae62E4421761cdaCEdCE95e1b39c
 contract Lottery is Ownable {
-    uint8 public duration;
+    uint public duration;
     // 0或1
     enum Result {
         A,
@@ -36,7 +36,7 @@ contract Lottery is Ownable {
 
     //@_duration: 每局的时长
     //@ _minBetVal: 最小投注额
-    constructor(uint8 _duration, uint _minBetVal) {
+    constructor(uint _duration, uint _minBetVal) {
         duration = _duration;
         minBetVal = _minBetVal;
     }

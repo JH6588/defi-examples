@@ -18,7 +18,6 @@ module.exports = {
       goerli : {
         url: `https://eth-goerli.alchemyapi.io/v2/${secrets.ALCHEMY_API_KEY}`,
         accounts: [secrets.PRIVATE_KEY]
-
   }
   
   }
